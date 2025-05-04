@@ -5,43 +5,45 @@ import re
 
 app = Flask(__name__)
 
-# Load notebook file
-NOTEBOOK_FILE = "cl3.ipynb"  # 🔁 Update if your filename is different
+NOTEBOOK_FILE = "cl3.ipynb"  # Update if filename differs
 
+# Load notebook
 with open(NOTEBOOK_FILE, "r") as f:
     nb = json.load(f)
 
 code_map = {}
-last_tag = None
+current_tag = None
 
-# Extract tags like P1, P2 from markdown headings
+# Regex to match tags like '## P1: Title' or '### P2 - something'
+tag_regex = re.compile(r'^#+\s*P(\d+)', re.IGNORECASE)
+
 for cell in nb["cells"]:
     if cell["cell_type"] == "markdown":
         for line in cell["source"]:
-            line = line.strip()
-            match = re.match(r'^#+\s*P(\d+)', line, re.IGNORECASE)
+            match = tag_regex.match(line.strip())
             if match:
-                last_tag = f"P{match.group(1)}".upper()
-    elif cell["cell_type"] == "code" and last_tag:
-        code_map[last_tag] = "".join(cell["source"])
-        last_tag = None
+                current_tag = f"P{match.group(1)}".upper()
+                if current_tag not in code_map:
+                    code_map[current_tag] = []  # Initialize list of code blocks
+    elif cell["cell_type"] == "code" and current_tag:
+        code_map[current_tag].append("".join(cell["source"]))
 
-# Endpoint to get code by tag
+# Route to return full code (all cells) for a given tag, preserving formatting
 @app.route("/code/<tag>")
 def get_code(tag):
     tag = tag.upper()
-    code = code_map.get(tag)
-    if code:
-        return jsonify({tag: code})
+    if tag in code_map:
+        full_code = "\n\n".join(code_map[tag])  # Separate code blocks clearly
+        return jsonify({tag: full_code})
     else:
         return jsonify({"error": f"No code found for tag: {tag}"}), 404
 
-# Debug route to list all available tags
+# Debug route to list all detected tags
 @app.route("/tags")
 def list_tags():
     return jsonify(sorted(code_map.keys()))
 
-# Run the app with Render-compatible settings
+# Start the app on correct host/port for Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
