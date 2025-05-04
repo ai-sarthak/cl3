@@ -29,4 +29,7 @@ def get_code(section_id: str):
     if not code_lines:
         raise HTTPException(status_code=404, detail="Section not found or no code under this section.")
 
-    return "\n".join(code_lines)
+    return "\n\n".join(
+    f"# --- Cell {i + 1} ---\n{code}" for i, code in enumerate(code_lines)
+)
+
