@@ -1,28 +1,33 @@
 from flask import Flask, jsonify
 import json
 import os
+import re
 
 app = Flask(__name__)
 
-# Load notebook
-with open("cl3.ipynb") as f:
+# Load notebook file
+NOTEBOOK_FILE = "cl3.ipynb"  # 🔁 Update if your filename is different
+
+with open(NOTEBOOK_FILE, "r") as f:
     nb = json.load(f)
 
-# Map markdown tags like P1, P2 to the code block that follows
 code_map = {}
 last_tag = None
 
-for cell in nb['cells']:
-    if cell['cell_type'] == 'markdown':
-        for line in cell['source']:
+# Extract tags like P1, P2 from markdown headings
+for cell in nb["cells"]:
+    if cell["cell_type"] == "markdown":
+        for line in cell["source"]:
             line = line.strip()
-            if line.startswith("## P") and line[1:].isdigit():
-                last_tag = line
-    elif cell['cell_type'] == 'code' and last_tag:
-        code_map[last_tag] = "".join(cell['source'])
+            match = re.match(r'^#+\s*P(\d+)', line, re.IGNORECASE)
+            if match:
+                last_tag = f"P{match.group(1)}".upper()
+    elif cell["cell_type"] == "code" and last_tag:
+        code_map[last_tag] = "".join(cell["source"])
         last_tag = None
 
-@app.route('/code/<tag>')
+# Endpoint to get code by tag
+@app.route("/code/<tag>")
 def get_code(tag):
     tag = tag.upper()
     code = code_map.get(tag)
@@ -31,7 +36,12 @@ def get_code(tag):
     else:
         return jsonify({"error": f"No code found for tag: {tag}"}), 404
 
-# 👇 THIS PART IS THE FIX
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# Debug route to list all available tags
+@app.route("/tags")
+def list_tags():
+    return jsonify(sorted(code_map.keys()))
+
+# Run the app with Render-compatible settings
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
