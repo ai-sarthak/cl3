@@ -1,13 +1,14 @@
 from flask import Flask, jsonify
 import json
+import os
 
 app = Flask(__name__)
 
-# Load the notebook
+# Load notebook
 with open("cl3.ipynb") as f:
     nb = json.load(f)
 
-# Map tags like "P1", "P2" to the next code block
+# Map markdown tags like P1, P2 to the code block that follows
 code_map = {}
 last_tag = None
 
@@ -21,7 +22,7 @@ for cell in nb['cells']:
         code_map[last_tag] = "".join(cell['source'])
         last_tag = None
 
-@app.route('/get/<tag>')
+@app.route('/code/<tag>')
 def get_code(tag):
     tag = tag.upper()
     code = code_map.get(tag)
@@ -29,3 +30,8 @@ def get_code(tag):
         return jsonify({tag: code})
     else:
         return jsonify({"error": f"No code found for tag: {tag}"}), 404
+
+# 👇 THIS PART IS THE FIX
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
