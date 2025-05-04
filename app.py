@@ -16,7 +16,7 @@ for cell in nb['cells']:
     if cell['cell_type'] == 'markdown':
         for line in cell['source']:
             line = line.strip()
-            if line.startswith("P") and line[1:].isdigit():
+            if line.startswith("## P") and line[1:].isdigit():
                 last_tag = line
     elif cell['cell_type'] == 'code' and last_tag:
         code_map[last_tag] = "".join(cell['source'])
